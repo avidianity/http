@@ -1,6 +1,6 @@
 import { Exception } from './exception';
 import { makeBody, mergeObjects, parseUrl } from './helpers';
-import { HttpOptions, Method, Options, RequestConfig, Response } from './types';
+import { HttpOptions, Options, RequestConfig, Response } from './types';
 
 export class Http {
     constructor(public readonly options: HttpOptions = {}) {
@@ -81,14 +81,13 @@ export class Http {
             );
         }
 
-        const defaultHeaders = this.options.headers ?? {};
-        const headers = {
-            ...defaultHeaders,
-            ...config.headers,
-        };
+        const headers = mergeObjects(
+            this.options.headers ?? {},
+            config.headers ?? {}
+        );
 
         try {
-            let method: Method = config.method;
+            let method = config.method;
 
             if (
                 ['PUT', 'PATCH'].includes(method) &&
