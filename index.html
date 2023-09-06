@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+        <script src="./dist/umd/index.min.js"></script>
+        <script>
+            async function main() {
+                try {
+                    const http = new Http.Http({
+                        baseUrl: 'https://jsonplaceholder.typicode.com',
+                        emulatePutPatch: true,
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                        params: {
+                            hi: 'hello',
+                        },
+                    });
+
+                    const response1 = await http.put('/posts/1', {
+                        haha: 'yehey',
+                    });
+
+                    console.log(response1);
+                } catch (error) {
+                    console.log(error.response);
+                }
+            }
+
+            main();
+        </script>
+    </head>
+    <body></body>
+</html>
