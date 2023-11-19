@@ -135,6 +135,7 @@ export class Http {
                 body: (config.data
                     ? makeBody(config.data)
                     : config.data) as any,
+                signal: config.signal,
             });
 
             const responseHeaders: Record<string, string> = {};

@@ -11,6 +11,7 @@ export type Options = {
      * @default 'json'
      */
     responseType?: ResponseType;
+    signal?: AbortSignal;
 };
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'HEAD' | 'DELETE';

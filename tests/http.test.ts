@@ -1,5 +1,4 @@
 import { Http } from '../src/index';
-import { isException } from '../src/helpers';
 import { enableFetchMocks } from 'jest-fetch-mock';
 import { Fetch } from '../src/types';
 
