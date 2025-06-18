@@ -4,7 +4,7 @@ export function mergeObjects<T extends object[]>(...objects: T): T[0] {
     return Object.assign({}, ...objects);
 }
 
-export function isException<T>(error: unknown): error is Exception {
+export function isException(error: unknown): error is Exception {
     return error instanceof Exception;
 }
 

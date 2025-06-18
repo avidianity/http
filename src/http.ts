@@ -3,17 +3,13 @@ import { makeBody, mergeObjects, parseUrl } from './helpers';
 import { HttpOptions, Options, RequestConfig, Response } from './types';
 
 export class Http {
-    constructor(public readonly options: HttpOptions = {}) {
-        //
-    }
+    constructor(public readonly options: HttpOptions = {}) {}
 
     public get<T = any>(url: string, options?: Options) {
         return this.makeRequest<T>({
             url,
             method: 'GET',
-            headers: options?.headers,
-            params: options?.params,
-            responseType: options?.responseType,
+            ...options,
         });
     }
 
@@ -22,9 +18,7 @@ export class Http {
             url,
             method: 'POST',
             data,
-            headers: options?.headers,
-            params: options?.params,
-            responseType: options?.responseType,
+            ...options,
         });
     }
 
@@ -33,9 +27,7 @@ export class Http {
             url,
             method: 'PUT',
             data,
-            headers: options?.headers,
-            params: options?.params,
-            responseType: options?.responseType,
+            ...options,
         });
     }
 
@@ -44,9 +36,7 @@ export class Http {
             url,
             method: 'PATCH',
             data,
-            headers: options?.headers,
-            params: options?.params,
-            responseType: options?.responseType,
+            ...options,
         });
     }
 
@@ -54,13 +44,13 @@ export class Http {
         return this.makeRequest<T>({
             url,
             method: 'DELETE',
-            headers: options?.headers,
-            params: options?.params,
-            responseType: options?.responseType,
+            ...options,
         });
     }
 
-    protected async makeRequest<T = any>(config: RequestConfig<T>) {
+    protected async makeRequest<T = any>(
+        config: RequestConfig<any>
+    ): Promise<Response<T>> {
         const baseUrl = parseUrl(config.url, this.options.baseUrl);
 
         if (!baseUrl) {
@@ -69,9 +59,10 @@ export class Http {
 
         const url = new URL(baseUrl);
 
+        // Merge params: global first, then request-specific (request overrides global)
         const params = mergeObjects(
-            config.params ?? {},
-            this.options.params ?? {}
+            this.options.params ?? {},
+            config.params ?? {}
         );
 
         for (const [key, value] of Object.entries(params)) {
@@ -81,6 +72,7 @@ export class Http {
             );
         }
 
+        // Merge headers: global first, then request-specific (request overrides global)
         const headers = mergeObjects(
             this.options.headers ?? {},
             config.headers ?? {}
@@ -89,6 +81,7 @@ export class Http {
         try {
             let method = config.method;
 
+            // Emulate PUT/PATCH if needed
             if (
                 ['PUT', 'PATCH'].includes(method) &&
                 this.options.emulatePutPatch
@@ -98,45 +91,37 @@ export class Http {
                 const emulateMethod = this.options.emulateMethod ?? 'POST';
 
                 if (emulateMethod === 'POST') {
-                    const extra = {
-                        [methodKey]: methodValue,
-                    };
-
-                    if (config.data) {
-                        config.data = {
-                            ...config.data,
-                            ...extra,
-                        };
-                    } else {
-                        config.data = extra as T;
-                    }
+                    const extra = { [methodKey]: methodValue };
+                    config.data = config.data
+                        ? { ...config.data, ...extra }
+                        : (extra as typeof config.data);
                 } else {
                     url.searchParams.set(methodKey, methodValue);
-
                     if (config.data) {
                         for (const [key, value] of Object.entries(
                             config.data
                         )) {
                             url.searchParams.set(key, `${value}`);
                         }
-
                         delete config.data;
                     }
                 }
-
                 method = emulateMethod;
             }
 
             const fetchFunction = this.options.fetch ?? fetch;
 
-            const response = await fetchFunction(url.toString(), {
+            const fetchOptions: RequestInit = {
                 method,
                 headers,
-                body: (config.data
-                    ? makeBody(config.data)
-                    : config.data) as any,
+                body:
+                    config.data !== undefined
+                        ? makeBody(config.data)
+                        : undefined,
                 signal: config.signal,
-            });
+            };
+
+            const response = await fetchFunction(url.toString(), fetchOptions);
 
             const responseHeaders: Record<string, string> = {};
             response.headers.forEach(
@@ -150,12 +135,17 @@ export class Http {
             if (responseType === 'json') {
                 const json = await response.text();
                 try {
-                    data = JSON.parse(json);
+                    data = json ? JSON.parse(json) : null;
                 } catch (_) {
                     data = json;
                 }
+            } else if (
+                responseType in response &&
+                typeof (response as any)[responseType] === 'function'
+            ) {
+                data = await (response as any)[responseType]();
             } else {
-                data = await response[responseType]();
+                data = await response.text();
             }
 
             const payload: Response<T> = {
@@ -169,14 +159,15 @@ export class Http {
             }
 
             return payload;
-        } catch (error) {
+        } catch (error: any) {
             if (error instanceof Exception) {
                 throw error;
             }
 
-            throw new Error('Network error', {
-                cause: error,
-            });
+            const err = new Error(error?.message || 'Network error');
+            if (error?.stack) err.stack = error.stack;
+            (err as any).cause = error;
+            throw err;
         }
     }
 }
