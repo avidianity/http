@@ -193,4 +193,32 @@ describe('Http', () => {
             'Network error'
         );
     });
+
+    it('should abort the request when signal is aborted', async () => {
+        fetchMock.mockImplementation((_input, init) => {
+            return new Promise((_resolve, reject) => {
+                if (init && init.signal) {
+                    init.signal.addEventListener('abort', () => {
+                        const abortError = new Error('Aborted');
+                        abortError.name = 'AbortError';
+                        reject(abortError);
+                    });
+                }
+            });
+        });
+
+        const http = new Http({
+            fetch: fetchMock as Fetch,
+        });
+
+        const controller = new AbortController();
+
+        const promise = http.get('https://example.com/api/abort', {
+            signal: controller.signal,
+        });
+
+        controller.abort();
+
+        await expect(promise).rejects.toThrow(/aborted|AbortError/i);
+    });
 });
