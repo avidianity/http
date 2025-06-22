@@ -135,7 +135,7 @@ describe('Http', () => {
         const http = new Http({
             fetch: fetchMock as Fetch,
         });
-        const headers = { Authorization: 'Bearer token' };
+        const headers = { authorization: 'Bearer token' };
         const response = await http.get('https://example.com/api/headers', {
             headers,
         });
@@ -165,7 +165,7 @@ describe('Http', () => {
     it('should send default headers', async () => {
         fetchMock.mockResponseOnce(JSON.stringify({ data: 'default headers' }));
 
-        const defaultHeaders = { 'X-Custom-Header': 'CustomValue' };
+        const defaultHeaders = { 'x-custom-header': 'CustomValue' };
         const customHttp = new Http({
             fetch: fetchMock as Fetch,
             headers: defaultHeaders,
@@ -220,5 +220,172 @@ describe('Http', () => {
         controller.abort();
 
         await expect(promise).rejects.toThrow(/aborted|AbortError/i);
+    });
+
+    it('should set the headers correctly', async () => {
+        fetchMock.mockResponse(async (request) => {
+            const headersArray = Array.from(request.headers.entries());
+            return {
+                body: JSON.stringify(headersArray),
+                headers: {
+                    'content-type': 'application/json',
+                },
+            };
+        });
+
+        const headers = {
+            'X-Test-Header': 'TestValue',
+            Authorization: 'Bearer token',
+        };
+
+        const http = new Http({
+            fetch: fetchMock as Fetch,
+            headers,
+        });
+
+        const response = await http.get('https://example.com/api/headers');
+
+        // Convert headers back to object for easier comparison
+        const receivedHeaders: [string, string][] = response.data;
+        const headersObject = Object.fromEntries(receivedHeaders);
+
+        expect(headersObject['x-test-header']).toBe('TestValue');
+        expect(headersObject['authorization']).toBe('Bearer token');
+    });
+
+    it('should set the headers correctly using Headers class', async () => {
+        fetchMock.mockResponse(async (request) => {
+            const headersArray = Array.from(request.headers.entries());
+            return {
+                body: JSON.stringify(headersArray),
+                headers: {
+                    'content-type': 'application/json',
+                },
+            };
+        });
+
+        const headers = new Headers();
+        headers.append('X-Test-Header', 'TestValue');
+        headers.append('Authorization', 'Bearer token');
+
+        const http = new Http({
+            fetch: fetchMock as Fetch,
+        });
+
+        const response = await http.get('https://example.com/api/headers', {
+            headers,
+        });
+
+        // Convert headers back to object for easier comparison
+        const receivedHeaders: [string, string][] = response.data;
+        const headersObject = Object.fromEntries(receivedHeaders);
+
+        expect(headersObject['x-test-header']).toBe('TestValue');
+        expect(headersObject['authorization']).toBe('Bearer token');
+    });
+
+    it('should apply request interceptor to modify headers', async () => {
+        fetchMock.mockResponse(async (req) => {
+            const headers = Array.from(req.headers.entries());
+            return {
+                body: JSON.stringify(headers),
+                headers: { 'content-type': 'application/json' },
+            };
+        });
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        http.addRequestInterceptor(async (req) => {
+            if (req.headers instanceof Headers) {
+                req.headers.set('X-Intercepted', 'true');
+            } else {
+                req.headers = {
+                    ...(req.headers || {}),
+                    'X-Intercepted': 'true',
+                };
+            }
+            return req;
+        });
+
+        const res = await http.get('https://example.com/api/intercept');
+
+        const headers = Object.fromEntries(res.data);
+        expect(headers['x-intercepted']).toBe('true');
+    });
+
+    it('should apply response interceptor to transform response data', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ message: 'original' }));
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        http.addResponseInterceptor((res) => {
+            res.data.message = 'intercepted';
+            return res;
+        });
+
+        const res = await http.get('https://example.com/api/intercept');
+
+        expect(res.data.message).toBe('intercepted');
+    });
+
+    it('should apply multiple interceptors in order', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ val: 1 }));
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        http.addResponseInterceptor((res) => {
+            res.data.val += 1;
+            return res;
+        });
+
+        http.addResponseInterceptor((res) => {
+            res.data.val *= 10;
+            return res;
+        });
+
+        const res = await http.get('https://example.com/api/intercept');
+
+        // (1 + 1) * 10 = 20
+        expect(res.data.val).toBe(20);
+    });
+
+    it('should support async request interceptor', async () => {
+        fetchMock.mockResponse(async (req) => {
+            const headers = Array.from(req.headers.entries());
+            return {
+                body: JSON.stringify(headers),
+                headers: { 'content-type': 'application/json' },
+            };
+        });
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        http.addRequestInterceptor(async (req) => {
+            await new Promise((r) => setTimeout(r, 50));
+            req.headers = {
+                ...(req.headers || {}),
+                'X-Async': 'yes',
+            };
+            return req;
+        });
+
+        const res = await http.get('https://example.com/api/intercept');
+
+        const headers = Object.fromEntries(res.data);
+        expect(headers['x-async']).toBe('yes');
+    });
+
+    it('should propagate errors from request interceptors', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({}));
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        http.addRequestInterceptor(() => {
+            throw new Error('Interceptor failure');
+        });
+
+        await expect(
+            http.get('https://example.com/api/intercept')
+        ).rejects.toThrow('Interceptor failure');
     });
 });

@@ -1,6 +1,6 @@
 export type Parameters = Record<string, string | number>;
 
-export type Headers = Record<string, string>;
+export type Headers = Record<string, string> | globalThis.Headers;
 
 export type ResponseType = 'text' | 'json' | 'blob' | 'arrayBuffer';
 
@@ -52,3 +52,7 @@ export type HttpOptions = {
      */
     emulateMethodValue?: string;
 };
+
+export interface Interceptor<T> {
+    (input: T): T | Promise<T>;
+}
