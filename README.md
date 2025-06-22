@@ -24,7 +24,7 @@ npm install @avidian/http
 ```ts
 import Http from '@avidian/http';
 
-const http = Http();
+const http = new Http();
 
 async function fetchData() {
     const response = await http.get('https://api.example.com/data');
@@ -37,7 +37,7 @@ async function fetchData() {
 ```ts
 import Http from '@avidian/http';
 
-const http = Http({
+const http = new Http({
     baseUrl: 'https://api.example.com',
     headers: { Authorization: 'Bearer token' },
 });
@@ -50,7 +50,7 @@ http.post('/users', { name: 'Alice' }).then(res => {
 ### Emulate PUT/PATCH
 
 ```ts
-const http = Http({ emulatePutPatch: true });
+const http = new Http({ emulatePutPatch: true });
 http.put('/resource/1', { name: 'Bob' });
 ```
 
@@ -101,7 +101,7 @@ Errors with status code >= 400 throw an [`Exception`](src/exception.ts) containi
 ```ts
 import Http, { isException } from '@avidian/http';
 
-const http = Http();
+const http = new Http();
 
 try {
     await http.get('/not-found');
