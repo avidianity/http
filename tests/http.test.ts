@@ -112,6 +112,68 @@ describe('Http', () => {
         );
     });
 
+    it('should preserve FormData entries when emulating PUT', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ data: 'updated' }));
+
+        const http = new Http({
+            emulatePutPatch: true,
+            fetch: fetchMock as Fetch,
+        });
+
+        const formData = new FormData();
+        formData.append('name', 'Bob');
+
+        await http.put('https://example.com/api/update', formData);
+
+        const [, init] = fetchMock.mock.calls[0];
+        expect(init?.method).toBe('POST');
+        expect(init?.body).toBeInstanceOf(FormData);
+
+        const sent = init?.body as FormData;
+        expect(sent.get('name')).toBe('Bob');
+        expect(sent.get('_method')).toBe('PUT');
+    });
+
+    it('should preserve URLSearchParams entries when emulating PATCH', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ data: 'updated' }));
+
+        const http = new Http({
+            emulatePutPatch: true,
+            fetch: fetchMock as Fetch,
+        });
+
+        const params = new URLSearchParams();
+        params.append('name', 'Bob');
+
+        await http.patch('https://example.com/api/update', params);
+
+        const [, init] = fetchMock.mock.calls[0];
+        expect(init?.method).toBe('POST');
+        expect(init?.body).toBeInstanceOf(URLSearchParams);
+
+        const sent = init?.body as URLSearchParams;
+        expect(sent.get('name')).toBe('Bob');
+        expect(sent.get('_method')).toBe('PATCH');
+    });
+
+    it('should put emulated method in query for non-mergeable bodies', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ data: 'updated' }));
+
+        const http = new Http({
+            emulatePutPatch: true,
+            fetch: fetchMock as Fetch,
+        });
+
+        const blob = new Blob(['raw'], { type: 'application/octet-stream' });
+
+        await http.put('https://example.com/api/update', blob);
+
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(init?.method).toBe('POST');
+        expect(init?.body).toBe(blob);
+        expect(String(url)).toContain('_method=PUT');
+    });
+
     it('should make a DELETE request', async () => {
         fetchMock.mockResponseOnce(JSON.stringify({ data: 'deleted' }));
 

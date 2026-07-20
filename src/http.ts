@@ -1,5 +1,5 @@
 import { Exception } from './exception';
-import { makeBody, mergeObjects, normalizeHeaders, parseUrl } from './helpers';
+import { makeBody, mergeObjects, normalizeHeaders, parseUrl, isPlainObject } from './helpers';
 import {
     HttpOptions,
     Options,
@@ -92,10 +92,20 @@ export class Http {
             const emulateMethod = this.options.emulateMethod ?? 'POST';
 
             if (emulateMethod === 'POST') {
-                const extra = { [key]: val };
-                config.data = (
-                    config.data ? { ...config.data, ...extra } : extra
-                ) as any;
+                const data = config.data;
+                if (data instanceof FormData || data instanceof URLSearchParams) {
+                    data.append(key, val);
+                } else if (
+                    data === undefined ||
+                    data === null ||
+                    isPlainObject(data)
+                ) {
+                    config.data = { ...(data ?? {}), [key]: val } as any;
+                } else {
+                    // Blob, ReadableStream, string, etc. cannot be merged
+                    // into, so carry the emulated method in the query string.
+                    url.searchParams.set(key, val);
+                }
             } else {
                 url.searchParams.set(key, val);
                 if (config.data) {
