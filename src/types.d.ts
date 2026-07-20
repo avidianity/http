@@ -4,6 +4,11 @@ export type Headers = Record<string, string> | globalThis.Headers;
 
 export type ResponseType = 'text' | 'json' | 'blob' | 'arrayBuffer';
 
+export type FetchOptions = Omit<
+    RequestInit,
+    'method' | 'headers' | 'body' | 'signal'
+>;
+
 export type Options = {
     headers?: Headers;
     params?: Parameters;
@@ -18,13 +23,25 @@ export type Options = {
      */
     timeout?: number;
     /**
+     * Extra `RequestInit` fields passed straight to fetch (credentials,
+     * mode, cache, redirect, ...). Merged over the instance defaults.
+     */
+    fetchOptions?: FetchOptions;
+    /**
      * Decide whether a status code resolves or rejects the request.
      * @default (status) => status < 400
      */
     validateStatus?: (status: number) => boolean;
 };
 
-export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'HEAD' | 'DELETE';
+export type Method =
+    | 'GET'
+    | 'POST'
+    | 'PUT'
+    | 'PATCH'
+    | 'HEAD'
+    | 'OPTIONS'
+    | 'DELETE';
 
 export type RequestConfig<T> = {
     method: Method;
@@ -53,6 +70,10 @@ export type HttpOptions = {
      * Default timeout in milliseconds for every request.
      */
     timeout?: number;
+    /**
+     * Extra `RequestInit` fields passed straight to fetch for every request.
+     */
+    fetchOptions?: FetchOptions;
     /**
      * Decide whether a status code resolves or rejects the request.
      * @default (status) => status < 400

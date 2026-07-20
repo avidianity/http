@@ -50,11 +50,15 @@ export class Http {
     }
 
     public get<T = any>(url: string, options?: Options) {
-        return this.makeRequest<T>({ url, method: 'GET', ...options });
+        return this.request<T>({ url, method: 'GET', ...options });
+    }
+
+    public head<T = any>(url: string, options?: Options) {
+        return this.request<T>({ url, method: 'HEAD', ...options });
     }
 
     public post<T = any, D = any>(url: string, data?: D, options?: Options) {
-        return this.makeRequest<T, D>({
+        return this.request<T, D>({
             url,
             method: 'POST',
             data,
@@ -63,11 +67,11 @@ export class Http {
     }
 
     public put<T = any, D = any>(url: string, data?: D, options?: Options) {
-        return this.makeRequest<T, D>({ url, method: 'PUT', data, ...options });
+        return this.request<T, D>({ url, method: 'PUT', data, ...options });
     }
 
     public patch<T = any, D = any>(url: string, data?: D, options?: Options) {
-        return this.makeRequest<T, D>({
+        return this.request<T, D>({
             url,
             method: 'PATCH',
             data,
@@ -75,8 +79,17 @@ export class Http {
         });
     }
 
-    public delete<T = any, D = any>(url: string, options?: Options) {
-        return this.makeRequest<T, D>({ url, method: 'DELETE', ...options });
+    public delete<T = any, D = any>(
+        url: string,
+        options?: Options & { data?: D }
+    ) {
+        return this.request<T, D>({ url, method: 'DELETE', ...options });
+    }
+
+    public request<T = any, D = any>(
+        config: RequestConfig<D>
+    ): Promise<Response<T>> {
+        return this.makeRequest<T, D>(config);
     }
 
     protected async makeRequest<T = any, D = any>(
@@ -147,6 +160,8 @@ export class Http {
         const signal = this.makeSignal(config.signal, timeout, timeoutState);
 
         let requestInit: RequestInit = {
+            ...this.options.fetchOptions,
+            ...config.fetchOptions,
             method,
             headers,
             body: bodyDef?.body,

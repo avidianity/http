@@ -661,4 +661,79 @@ describe('Http', () => {
             expect(makeBody('hello').type).toBe('text/plain');
         });
     });
+
+    it('should pass fetchOptions through to fetch', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({}));
+
+        const http = new Http({
+            fetch: fetchMock as Fetch,
+            fetchOptions: { credentials: 'include', mode: 'cors' },
+        });
+
+        await http.get('https://example.com/api/x', {
+            fetchOptions: { mode: 'same-origin' },
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://example.com/api/x',
+            expect.objectContaining({
+                credentials: 'include',
+                // per-request fetchOptions win over instance defaults
+                mode: 'same-origin',
+                method: 'GET',
+            })
+        );
+    });
+
+    it('should expose a generic request method', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ ok: true }));
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        const res = await http.request({
+            url: 'https://example.com/api/x',
+            method: 'POST',
+            data: { a: 1 },
+        });
+
+        expect(res.data).toEqual({ ok: true });
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://example.com/api/x',
+            expect.objectContaining({
+                method: 'POST',
+                body: JSON.stringify({ a: 1 }),
+            })
+        );
+    });
+
+    it('should make a HEAD request', async () => {
+        fetchMock.mockResponseOnce('');
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        await http.head('https://example.com/api/x');
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://example.com/api/x',
+            expect.objectContaining({ method: 'HEAD' })
+        );
+    });
+
+    it('should send a body with DELETE when data is provided', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({}));
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        await http.delete('https://example.com/api/x', {
+            data: { reason: 'cleanup' },
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://example.com/api/x',
+            expect.objectContaining({
+                method: 'DELETE',
+                body: JSON.stringify({ reason: 'cleanup' }),
+            })
+        );
+    });
 });
