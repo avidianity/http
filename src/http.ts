@@ -14,6 +14,11 @@ type ResponseInterceptorPair = {
     onRejected?: ErrorInterceptor | null;
 };
 
+type TimeoutState = {
+    timedOut: boolean;
+    timer?: ReturnType<typeof setTimeout>;
+};
+
 export class Http {
     private requestInterceptors: Interceptor<RequestInit>[] = [];
     private responseInterceptors: ResponseInterceptorPair[] = [];
@@ -137,27 +142,79 @@ export class Http {
             headers['content-type'] ??= bodyDef.type;
         }
 
+        const timeout = config.timeout ?? this.options.timeout;
+        const timeoutState: TimeoutState = { timedOut: false };
+        const signal = this.makeSignal(config.signal, timeout, timeoutState);
+
         let requestInit: RequestInit = {
             method,
             headers,
             body: bodyDef?.body,
-            signal: config.signal,
+            signal,
         };
 
         for (const interceptor of this.requestInterceptors) {
             requestInit = await interceptor(requestInit);
         }
 
-        const promise = this.performFetch<T>(url, requestInit, config);
-
-        return this.responseInterceptors.reduce(
-            (chain, { onFulfilled, onRejected }) =>
-                chain.then(
-                    onFulfilled ?? undefined,
-                    onRejected ?? undefined
-                ) as Promise<Response<T>>,
-            promise
+        const promise = this.performFetch<T>(url, requestInit, config).catch(
+            (error) => {
+                if (timeoutState.timedOut) {
+                    throw new Exception(
+                        `Request timed out after ${timeout}ms`,
+                        undefined,
+                        'ETIMEDOUT'
+                    );
+                }
+                throw error;
+            }
         );
+
+        return this.responseInterceptors
+            .reduce(
+                (chain, { onFulfilled, onRejected }) =>
+                    chain.then(
+                        onFulfilled ?? undefined,
+                        onRejected ?? undefined
+                    ) as Promise<Response<T>>,
+                promise
+            )
+            .finally(() => {
+                if (timeoutState.timer !== undefined) {
+                    clearTimeout(timeoutState.timer);
+                }
+            });
+    }
+
+    private makeSignal(
+        userSignal: AbortSignal | undefined,
+        timeout: number | undefined,
+        state: TimeoutState
+    ): AbortSignal | undefined {
+        if (timeout === undefined) {
+            return userSignal;
+        }
+
+        const controller = new AbortController();
+
+        if (userSignal) {
+            if (userSignal.aborted) {
+                controller.abort(userSignal.reason);
+            } else {
+                userSignal.addEventListener(
+                    'abort',
+                    () => controller.abort(userSignal.reason),
+                    { once: true }
+                );
+            }
+        }
+
+        state.timer = setTimeout(() => {
+            state.timedOut = true;
+            controller.abort();
+        }, timeout);
+
+        return controller.signal;
     }
 
     private async performFetch<T>(

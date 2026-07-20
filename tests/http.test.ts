@@ -581,6 +581,73 @@ describe('Http', () => {
         );
     });
 
+    describe('timeout', () => {
+        const hangingFetch = () =>
+            fetchMock.mockImplementation((_input, init) => {
+                return new Promise((_resolve, reject) => {
+                    init?.signal?.addEventListener('abort', () => {
+                        const abortError = new Error('Aborted');
+                        abortError.name = 'AbortError';
+                        reject(abortError);
+                    });
+                });
+            });
+
+        it('should reject with ETIMEDOUT when timeout elapses', async () => {
+            hangingFetch();
+
+            const http = new Http({ fetch: fetchMock as Fetch });
+
+            const promise = http.get('https://example.com/api/slow', {
+                timeout: 30,
+            });
+
+            await expect(promise).rejects.toMatchObject({
+                name: 'Exception',
+                code: 'ETIMEDOUT',
+            });
+        });
+
+        it('should support timeout as an instance default', async () => {
+            hangingFetch();
+
+            const http = new Http({ fetch: fetchMock as Fetch, timeout: 30 });
+
+            await expect(
+                http.get('https://example.com/api/slow')
+            ).rejects.toMatchObject({ code: 'ETIMEDOUT' });
+        });
+
+        it('should keep user aborts distinct from timeouts', async () => {
+            hangingFetch();
+
+            const http = new Http({ fetch: fetchMock as Fetch });
+            const controller = new AbortController();
+
+            const promise = http.get('https://example.com/api/slow', {
+                timeout: 5000,
+                signal: controller.signal,
+            });
+
+            controller.abort();
+
+            await expect(promise).rejects.toThrow(/aborted/i);
+            await expect(promise).rejects.not.toMatchObject({
+                code: 'ETIMEDOUT',
+            });
+        });
+
+        it('should not time out fast requests', async () => {
+            fetchMock.mockResponseOnce(JSON.stringify({ ok: true }));
+
+            const http = new Http({ fetch: fetchMock as Fetch, timeout: 5000 });
+
+            const res = await http.get('https://example.com/api/fast');
+
+            expect(res.data).toEqual({ ok: true });
+        });
+    });
+
     describe('body content-type detection', () => {
         it('labels JSON object/array strings as application/json', () => {
             expect(makeBody('{"a":1}').type).toBe('application/json');

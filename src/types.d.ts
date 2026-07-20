@@ -13,6 +13,11 @@ export type Options = {
     responseType?: ResponseType;
     signal?: AbortSignal;
     /**
+     * Milliseconds before the request is aborted and rejected with an
+     * `Exception` whose code is `ETIMEDOUT`. Overrides the instance default.
+     */
+    timeout?: number;
+    /**
      * Decide whether a status code resolves or rejects the request.
      * @default (status) => status < 400
      */
@@ -44,6 +49,10 @@ export type HttpOptions = {
     headers?: Headers;
     params?: Parameters;
     fetch?: Fetch;
+    /**
+     * Default timeout in milliseconds for every request.
+     */
+    timeout?: number;
     /**
      * Decide whether a status code resolves or rejects the request.
      * @default (status) => status < 400
