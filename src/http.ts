@@ -1,5 +1,5 @@
-import { Exception } from './exception';
-import { makeBody, mergeObjects, normalizeHeaders, resolveUrl, isPlainObject } from './helpers';
+import { Exception } from './exception.js';
+import { makeBody, mergeObjects, normalizeHeaders, resolveUrl, isPlainObject } from './helpers.js';
 import {
     HttpOptions,
     Options,
@@ -7,7 +7,7 @@ import {
     Response,
     Interceptor,
     ErrorInterceptor,
-} from './types';
+} from './types.js';
 
 type ResponseInterceptorPair = {
     onFulfilled?: Interceptor<Response<any>> | null;

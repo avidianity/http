@@ -1,4 +1,4 @@
-import { Response } from './types';
+import { Response } from './types.js';
 
 export type ExceptionCode = 'ERR_BAD_RESPONSE' | 'ETIMEDOUT' | (string & {});
 

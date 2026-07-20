@@ -1,4 +1,4 @@
-import { Exception } from './exception';
+import { Exception } from './exception.js';
 
 export function mergeObjects<T extends object[]>(...objects: T): T[0] {
     return Object.assign({}, ...objects);
