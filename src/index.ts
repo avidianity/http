@@ -5,6 +5,6 @@ export * from './http.js';
 export * from './exception.js';
 export { isException } from './helpers.js';
 
-export default function (options?: HttpOptions) {
+export default function createHttp(options?: HttpOptions) {
     return new Http(options);
 }

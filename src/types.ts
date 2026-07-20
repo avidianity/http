@@ -1,4 +1,10 @@
-export type Parameters = Record<string, string | number>;
+export type QueryParams = Record<string, string | number>;
+
+/**
+ * @deprecated Use `QueryParams` instead; this name shadows TypeScript's
+ * built-in `Parameters<T>` utility type.
+ */
+export type Parameters = QueryParams;
 
 export type Headers = Record<string, string> | globalThis.Headers;
 
@@ -11,7 +17,7 @@ export type FetchOptions = Omit<
 
 export type Options = {
     headers?: Headers;
-    params?: Parameters;
+    params?: QueryParams;
     /**
      * @default 'json'
      */
@@ -64,7 +70,7 @@ export type Fetch = (
 export type HttpOptions = {
     baseUrl?: string;
     headers?: Headers;
-    params?: Parameters;
+    params?: QueryParams;
     fetch?: Fetch;
     /**
      * Default timeout in milliseconds for every request.

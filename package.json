@@ -40,7 +40,7 @@
     "homepage": "https://github.com/avidianity/http#readme",
     "devDependencies": {
         "@rollup/plugin-node-resolve": "^16.0.1",
-        "@rollup/plugin-terser": "^0.4.4",
+        "@rollup/plugin-terser": "^1.0.0",
         "@rollup/plugin-typescript": "^12.3.0",
         "@types/jest": "^30.0.0",
         "blob-polyfill": "^9.0.20240710",
