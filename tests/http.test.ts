@@ -1,4 +1,5 @@
 import { Http, isException, Exception } from '../src/index';
+import { resolveUrl } from '../src/helpers';
 import { enableFetchMocks } from 'jest-fetch-mock';
 import { Fetch } from '../src/types';
 
@@ -542,5 +543,41 @@ describe('Http', () => {
 
         expect(res.statusCode).toBe(404);
         expect(res.data).toEqual({ missing: true });
+    });
+
+    it('should resolve relative urls against a baseUrl', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({}));
+
+        const http = new Http({
+            baseUrl: 'https://example.com/api',
+            fetch: fetchMock as Fetch,
+        });
+
+        await http.get('/users');
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://example.com/api/users',
+            expect.anything()
+        );
+    });
+
+    it('should resolve relative urls against location when no baseUrl', async () => {
+        // jsdom serves tests from http://localhost/
+        fetchMock.mockResponseOnce(JSON.stringify({}));
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        await http.get('/api/users');
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            'http://localhost/api/users',
+            expect.anything()
+        );
+    });
+
+    it('should throw a descriptive error for unresolvable urls', () => {
+        expect(() => resolveUrl('/api/users')).toThrow(
+            /relative url.*baseUrl/i
+        );
     });
 });

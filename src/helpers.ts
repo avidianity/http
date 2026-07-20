@@ -72,16 +72,21 @@ export function makeBody(body: unknown) {
     };
 }
 
-export function parseUrl(configUrl: string, baseUrl?: string): string {
+export function resolveUrl(
+    configUrl: string,
+    baseUrl?: string,
+    locationHref?: string
+): URL {
+    // Absolute URL: use as-is.
     try {
-        // Check if configUrl is a valid absolute URL
-        new URL(configUrl);
-        return configUrl;
-    } catch (_) {
-        // If baseUrl is not provided or if it's invalid, return configUrl as it is
-        if (!baseUrl) return configUrl;
+        return new URL(configUrl);
+    } catch {
+        // fall through to relative resolution
+    }
 
-        // Ensure the baseUrl ends with '/' and the configUrl doesn't start with '/'
+    if (baseUrl) {
+        // Ensure the baseUrl ends with '/' and the configUrl doesn't start
+        // with '/', so the base path is preserved when joining.
         const sanitizedBaseUrl = baseUrl.endsWith('/')
             ? baseUrl
             : baseUrl + '/';
@@ -89,6 +94,24 @@ export function parseUrl(configUrl: string, baseUrl?: string): string {
             ? configUrl.slice(1)
             : configUrl;
 
-        return sanitizedBaseUrl + sanitizedConfigUrl;
+        try {
+            return new URL(sanitizedBaseUrl + sanitizedConfigUrl);
+        } catch {
+            throw new Error(
+                `Invalid URL: could not resolve '${configUrl}' against baseUrl '${baseUrl}'`
+            );
+        }
     }
+
+    if (locationHref) {
+        try {
+            return new URL(configUrl, locationHref);
+        } catch {
+            // fall through to the descriptive error below
+        }
+    }
+
+    throw new Error(
+        `Invalid URL: '${configUrl}' is a relative URL but no baseUrl is configured`
+    );
 }

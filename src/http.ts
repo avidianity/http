@@ -1,5 +1,5 @@
 import { Exception } from './exception';
-import { makeBody, mergeObjects, normalizeHeaders, parseUrl, isPlainObject } from './helpers';
+import { makeBody, mergeObjects, normalizeHeaders, resolveUrl, isPlainObject } from './helpers';
 import {
     HttpOptions,
     Options,
@@ -77,10 +77,11 @@ export class Http {
     protected async makeRequest<T = any, D = any>(
         config: RequestConfig<D>
     ): Promise<Response<T>> {
-        const baseUrl = parseUrl(config.url, this.options.baseUrl);
-        if (!baseUrl) throw new Error('Missing url');
-
-        const url = new URL(baseUrl);
+        const url = resolveUrl(
+            config.url,
+            this.options.baseUrl,
+            typeof location !== 'undefined' ? location.href : undefined
+        );
 
         const params = mergeObjects(
             this.options.params ?? {},
