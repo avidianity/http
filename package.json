@@ -23,6 +23,7 @@
         "build:esm": "tsc -p tsconfig.esm.json && node -e \"require('fs').writeFileSync('dist/esm/package.json', JSON.stringify({ type: 'module' }))\"",
         "build:umd": "rollup --config rollup.config.mjs",
         "build": "npm run clean && npm run build:cjs && npm run build:esm && npm run build:umd",
+        "prepublishOnly": "npm run test && npm run build",
         "test": "jest"
     },
     "repository": {
