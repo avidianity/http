@@ -1,9 +1,12 @@
 {
-    "extends": "./tsconfig.base.json",
     "compilerOptions": {
-        "target": "ES2021",
+        "target": "ES2015",
         "module": "ESNext",
-        "outDir": "./dist/amd",
-        "sourceMap": true
-    }
+        "strict": true,
+        "esModuleInterop": true,
+        "sourceMap": true,
+        "lib": ["ES2015", "ES2016", "ES2017", "ES2022", "DOM"]
+    },
+    "include": ["src/**/*.ts"],
+    "exclude": ["node_modules"]
 }
