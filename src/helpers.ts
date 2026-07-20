@@ -32,6 +32,19 @@ export function isException(error: unknown): error is Exception {
     return error instanceof Exception;
 }
 
+function isJsonString(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        return false;
+    }
+    try {
+        JSON.parse(trimmed);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 export function makeBody(body: unknown) {
     if (
         body instanceof Blob ||
@@ -45,18 +58,10 @@ export function makeBody(body: unknown) {
     }
 
     if (typeof body === 'string') {
-        try {
-            JSON.parse(body);
-            return {
-                body,
-                type: 'application/json',
-            };
-        } catch {
-            return {
-                body,
-                type: 'text/plain',
-            };
-        }
+        return {
+            body,
+            type: isJsonString(body) ? 'application/json' : 'text/plain',
+        };
     }
 
     if (typeof body === 'object' && body !== null) {

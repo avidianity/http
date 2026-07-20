@@ -1,5 +1,5 @@
 import { Http, isException, Exception } from '../src/index';
-import { resolveUrl } from '../src/helpers';
+import { resolveUrl, makeBody } from '../src/helpers';
 import { enableFetchMocks } from 'jest-fetch-mock';
 import { Fetch } from '../src/types';
 
@@ -579,5 +579,19 @@ describe('Http', () => {
         expect(() => resolveUrl('/api/users')).toThrow(
             /relative url.*baseUrl/i
         );
+    });
+
+    describe('body content-type detection', () => {
+        it('labels JSON object/array strings as application/json', () => {
+            expect(makeBody('{"a":1}').type).toBe('application/json');
+            expect(makeBody('[1,2]').type).toBe('application/json');
+        });
+
+        it('labels scalar-looking strings as text/plain', () => {
+            expect(makeBody('123').type).toBe('text/plain');
+            expect(makeBody('true').type).toBe('text/plain');
+            expect(makeBody('null').type).toBe('text/plain');
+            expect(makeBody('hello').type).toBe('text/plain');
+        });
     });
 });
