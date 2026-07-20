@@ -1,7 +1,15 @@
 import { Response } from './types';
 
+export type ExceptionCode = 'ERR_BAD_RESPONSE' | 'ETIMEDOUT' | (string & {});
+
 export class Exception extends Error {
-    constructor(public readonly response: Response<any>) {
-        super(`Request failed with status code: ${response.statusCode}`);
+    public override readonly name: string = 'Exception';
+
+    constructor(
+        message: string,
+        public readonly response?: Response<any>,
+        public readonly code?: ExceptionCode
+    ) {
+        super(message);
     }
 }

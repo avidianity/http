@@ -1,4 +1,4 @@
-import { Http } from '../src/index';
+import { Http, isException, Exception } from '../src/index';
 import { enableFetchMocks } from 'jest-fetch-mock';
 import { Fetch } from '../src/types';
 
@@ -449,5 +449,98 @@ describe('Http', () => {
         await expect(
             http.get('https://example.com/api/intercept')
         ).rejects.toThrow('Interceptor failure');
+    });
+
+    it('should not run fulfilled interceptors for error responses', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ error: 'oops' }), {
+            status: 500,
+        });
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        const onFulfilled = jest.fn((res) => res);
+        http.addResponseInterceptor(onFulfilled);
+
+        await expect(http.get('https://example.com/api/x')).rejects.toThrow();
+        expect(onFulfilled).not.toHaveBeenCalled();
+    });
+
+    it('should run error interceptors for error responses', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ error: 'oops' }), {
+            status: 500,
+        });
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        const seen: unknown[] = [];
+        http.addResponseInterceptor(null, (error) => {
+            seen.push(error);
+            throw error;
+        });
+
+        await expect(http.get('https://example.com/api/x')).rejects.toThrow(
+            'Request failed with status code: 500'
+        );
+
+        expect(seen).toHaveLength(1);
+        expect(isException(seen[0])).toBe(true);
+        expect((seen[0] as Exception).code).toBe('ERR_BAD_RESPONSE');
+        expect((seen[0] as Exception).name).toBe('Exception');
+    });
+
+    it('should allow error interceptors to recover', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ error: 'oops' }), {
+            status: 404,
+        });
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        http.addResponseInterceptor(null, () => ({
+            headers: {},
+            statusCode: 200,
+            statusText: 'OK',
+            data: { fallback: true },
+        }));
+
+        // an interceptor added after a recovery sees the recovered response
+        const after = jest.fn((res) => res);
+        http.addResponseInterceptor(after);
+
+        const res = await http.get('https://example.com/api/x');
+
+        expect(res.data).toEqual({ fallback: true });
+        expect(after).toHaveBeenCalledTimes(1);
+    });
+
+    it('should route network errors through error interceptors', async () => {
+        fetchMock.mockRejectOnce(new Error('Network error'));
+
+        const http = new Http({ fetch: fetchMock as Fetch });
+
+        const onRejected = jest.fn((error) => {
+            throw error;
+        });
+        http.addResponseInterceptor(null, onRejected);
+
+        await expect(http.get('https://example.com/api/x')).rejects.toThrow(
+            'Network error'
+        );
+        expect(onRejected).toHaveBeenCalledTimes(1);
+    });
+
+    it('should respect a custom validateStatus', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ missing: true }), {
+            status: 404,
+        });
+
+        const http = new Http({
+            fetch: fetchMock as Fetch,
+            validateStatus: (status) => status < 500,
+        });
+
+        const res = await http.get('https://example.com/api/x');
+
+        expect(res.statusCode).toBe(404);
+        expect(res.data).toEqual({ missing: true });
     });
 });

@@ -2,6 +2,7 @@ import { Http } from './http';
 import { HttpOptions } from './types';
 
 export * from './http';
+export * from './exception';
 export { isException } from './helpers';
 
 export default function (options?: HttpOptions) {

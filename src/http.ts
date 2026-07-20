@@ -6,11 +6,17 @@ import {
     RequestConfig,
     Response,
     Interceptor,
+    ErrorInterceptor,
 } from './types';
+
+type ResponseInterceptorPair = {
+    onFulfilled?: Interceptor<Response<any>> | null;
+    onRejected?: ErrorInterceptor | null;
+};
 
 export class Http {
     private requestInterceptors: Interceptor<RequestInit>[] = [];
-    private responseInterceptors: Interceptor<Response<any>>[] = [];
+    private responseInterceptors: ResponseInterceptorPair[] = [];
 
     constructor(public readonly options: HttpOptions = {}) {}
 
@@ -24,10 +30,14 @@ export class Http {
         };
     }
 
-    public addResponseInterceptor<T = any>(fn: Interceptor<Response<T>>) {
-        this.responseInterceptors.push(fn);
+    public addResponseInterceptor<T = any>(
+        onFulfilled?: Interceptor<Response<T>> | null,
+        onRejected?: ErrorInterceptor | null
+    ) {
+        const pair: ResponseInterceptorPair = { onFulfilled, onRejected };
+        this.responseInterceptors.push(pair);
         return () => {
-            const i = this.responseInterceptors.indexOf(fn);
+            const i = this.responseInterceptors.indexOf(pair);
             if (i !== -1) {
                 this.responseInterceptors.splice(i, 1);
             }
@@ -137,6 +147,23 @@ export class Http {
             requestInit = await interceptor(requestInit);
         }
 
+        const promise = this.performFetch<T>(url, requestInit, config);
+
+        return this.responseInterceptors.reduce(
+            (chain, { onFulfilled, onRejected }) =>
+                chain.then(
+                    onFulfilled ?? undefined,
+                    onRejected ?? undefined
+                ) as Promise<Response<T>>,
+            promise
+        );
+    }
+
+    private async performFetch<T>(
+        url: URL,
+        requestInit: RequestInit,
+        config: RequestConfig<any>
+    ): Promise<Response<T>> {
         const fetchFunction = this.options.fetch ?? fetch;
         const rawResponse = await fetchFunction(url.toString(), requestInit);
 
@@ -162,18 +189,24 @@ export class Http {
             data = await rawResponse.text();
         }
 
-        let response: Response<T> = {
+        const response: Response<T> = {
             headers: responseHeaders,
             statusCode: rawResponse.status,
+            statusText: rawResponse.statusText,
             data,
         };
 
-        for (const interceptor of this.responseInterceptors) {
-            response = await interceptor(response);
-        }
+        const validateStatus =
+            config.validateStatus ??
+            this.options.validateStatus ??
+            ((status: number) => status < 400);
 
-        if (response.statusCode >= 400) {
-            throw new Exception(response);
+        if (!validateStatus(response.statusCode)) {
+            throw new Exception(
+                `Request failed with status code: ${response.statusCode}`,
+                response,
+                'ERR_BAD_RESPONSE'
+            );
         }
 
         return response;

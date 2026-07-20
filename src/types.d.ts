@@ -12,6 +12,11 @@ export type Options = {
      */
     responseType?: ResponseType;
     signal?: AbortSignal;
+    /**
+     * Decide whether a status code resolves or rejects the request.
+     * @default (status) => status < 400
+     */
+    validateStatus?: (status: number) => boolean;
 };
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'HEAD' | 'DELETE';
@@ -23,8 +28,9 @@ export type RequestConfig<T> = {
 } & Options;
 
 export type Response<T> = {
-    headers: Headers;
+    headers: Record<string, string>;
     statusCode: number;
+    statusText: string;
     data: T;
 };
 
@@ -38,6 +44,11 @@ export type HttpOptions = {
     headers?: Headers;
     params?: Parameters;
     fetch?: Fetch;
+    /**
+     * Decide whether a status code resolves or rejects the request.
+     * @default (status) => status < 400
+     */
+    validateStatus?: (status: number) => boolean;
     emulatePutPatch?: boolean;
     /**
      * @default '_method'
@@ -55,4 +66,13 @@ export type HttpOptions = {
 
 export interface Interceptor<T> {
     (input: T): T | Promise<T>;
+}
+
+export interface ErrorInterceptor {
+    /**
+     * Receives the error (an `Exception` for HTTP status failures, or the
+     * original error for network failures). Return a `Response` to recover,
+     * or rethrow to propagate.
+     */
+    (error: unknown): Response<any> | Promise<Response<any>>;
 }
